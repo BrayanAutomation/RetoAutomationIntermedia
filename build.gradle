@@ -5,6 +5,9 @@ subprojects {
  version = '1.0'
  java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
  repositories { mavenCentral() }
+ compileJava.options.encoding = 'UTF-8'
+ compileTestJava.options.encoding = 'UTF-8'
+ tasks.withType(Test).configureEach { defaultCharacterEncoding = 'UTF-8' }
  dependencies {
   implementation "net.serenity-bdd:serenity-core:${serenityCoreVersion}"
   implementation "net.serenity-bdd:serenity-cucumber:${serenityCoreVersion}"
@@ -15,7 +18,7 @@ subprojects {
   testImplementation "org.junit.vintage:junit-vintage-engine:5.10.2"
   testImplementation "org.junit.platform:junit-platform-suite-api:1.10.2"
   testImplementation "org.junit.platform:junit-platform-suite-engine:1.10.2"
-  testImplementation "io.cucumber:cucumber-junit-platform-engine:7.18.0"
+  testImplementation "io.cucumber:cucumber-junit-platform-engine:7.34.2"
   testImplementation "org.assertj:assertj-core:${assertJVersion}"
   compileOnly "org.projectlombok:lombok:${lombokVersion}"
   annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
