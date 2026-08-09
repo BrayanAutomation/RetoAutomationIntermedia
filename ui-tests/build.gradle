@@ -1,0 +1,4 @@
+dependencies {
+ implementation "net.serenity-bdd:serenity-screenplay:${serenityCoreVersion}"
+ implementation "net.serenity-bdd:serenity-screenplay-playwright:${serenityCoreVersion}"
+}

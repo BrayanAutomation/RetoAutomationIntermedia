@@ -1,0 +1,5 @@
+dependencies {
+ implementation "net.serenity-bdd:serenity-screenplay:${serenityCoreVersion}"
+ implementation "net.serenity-bdd:serenity-screenplay-rest:${serenityCoreVersion}"
+ implementation "io.rest-assured:rest-assured:5.4.0"
+}

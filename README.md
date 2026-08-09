@@ -1,0 +1,1 @@
+Framework completo UI + API con Screenplay, Playwright y REST.
