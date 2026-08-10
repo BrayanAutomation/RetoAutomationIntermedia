@@ -1,0 +1,66 @@
+# Compose SECUNDARIO de este repositorio: empaqueta y ejecuta la SUITE DE
+# PRUEBAS dentro de contenedores Docker, reproducible en cualquier máquina
+# con Docker Desktop, sin requerir Java/Gradle/Playwright instalados
+# localmente.
+#
+# NO reemplaza ni modifica el docker-compose.yml del reto
+# (automation-testing-artefacts), que levanta el sistema bajo prueba
+# (Postgres + API + Frontend). Ver DOCKER.md para la guía completa paso a
+# paso, incluyendo cómo resolver el nombre de la red si tu carpeta del reto
+# no se llama exactamente "automation-testing-artefacts".
+#
+# Requisito previo: el sistema bajo prueba debe estar corriendo
+#   (cd ../automation-testing-artefacts && docker-compose up --build -d)
+# ya que estos contenedores se conectan a su red Docker para alcanzar los
+# servicios "api" y "frontend" por nombre (DNS interno de Compose).
+
+services:
+  api-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+    networks:
+      - sut-network
+    command: >
+      sh -c "./gradlew :api-tests:test
+      -Dapi.base.url=http://api:8080
+      --console=plain"
+
+  ui-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+    networks:
+      - sut-network
+    # Chromium se queda sin memoria compartida con el /dev/shm por defecto
+    # de Docker (64MB) y puede crashear a mitad de la corrida; se amplía
+    # explícitamente en vez de usar --disable-dev-shm-usage (ese flag
+    # degrada el rendimiento del renderizador).
+    shm_size: "1gb"
+    command: >
+      sh -c "./gradlew :ui-tests:test
+      -Dui.base.url=http://frontend
+      -Dplaywright.headless=true
+      --console=plain"
+
+volumes:
+  # Cachea ~/.gradle (distribución de Gradle, toolchain JDK y dependencias
+  # descargadas) entre corridas, para que solo la primera ejecución sea lenta.
+  gradle-cache:
+
+networks:
+  # Red externa creada por el docker-compose.yml del reto. Su nombre por
+  # defecto es "<nombre_de_carpeta_del_reto>_default"; configurable vía
+  # la variable de entorno SUT_NETWORK_NAME (ver .env / DOCKER.md) si tu
+  # checkout usa un nombre de carpeta distinto.
+  sut-network:
+    external: true
+    name: ${SUT_NETWORK_NAME:-automation-testing-artefacts_default}

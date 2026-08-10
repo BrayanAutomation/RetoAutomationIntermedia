@@ -20,7 +20,7 @@ public class SetUp {
     @Before
     public void setStage() {
         String browser = System.getProperty("playwright.browser", "chromium");
-        boolean headless = Boolean.parseBoolean(System.getProperty("playwright.headless", "true"));
+        boolean headless = Boolean.parseBoolean(System.getProperty("playwright.headless", "false"));
 
         BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
                 .setHeadless(headless);
