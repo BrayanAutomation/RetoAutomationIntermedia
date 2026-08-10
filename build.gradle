@@ -56,5 +56,22 @@ subprojects {
         // ambos en la misma invocación (./gradlew test), "aggregate" corre
         // una sola vez, después de que TERMINEN los dos.
         finalizedBy rootProject.tasks.named('aggregate')
+
+        // IMPORTANTE: el task "test" corre en un JVM FORKEADO, distinto del
+        // JVM de Gradle. Las propiedades "-D" pasadas por línea de comandos
+        // (./gradlew test -Dapi.base.url=...) SOLO llegan al JVM de Gradle;
+        // no se reenvían solas al JVM forkeado del test. Hay que reenviarlas
+        // explícitamente, si no, el código siempre usa su valor por defecto
+        // (System.getProperty(x, "default")) sin importar qué -D se pase.
+        def forwardedProperties = [
+                'api.base.url', 'ui.base.url',
+                'playwright.headless', 'playwright.browser'
+        ]
+        forwardedProperties.each { key ->
+            def value = System.getProperty(key)
+            if (value != null) {
+                systemProperty key, value
+            }
+        }
     }
 }

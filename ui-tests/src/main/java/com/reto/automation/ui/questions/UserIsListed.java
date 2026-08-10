@@ -16,8 +16,14 @@ public class UserIsListed implements Question<Boolean> {
      * POST /api/users tiene una latencia intencional de 2.5s (CA-API-04)
      * antes de que la fila nueva pueda aparecer en la tabla; se espera
      * explícitamente en vez de comprobar el DOM de forma instantánea.
+     * 15s de margen (no solo 2.5s + colchón corto) porque en entornos con
+     * Chromium sin aceleración de hardware y overhead de red de contenedor
+     * (Docker) el ciclo completo puede tardar bastante más que en una
+     * corrida local nativa — verificado empíricamente: 6000ms alcanzaba
+     * siempre en Windows nativo pero fallaba de forma consistente corriendo
+     * dentro de docker-compose.tests.yml.
      */
-    private static final double TIMEOUT_MILLIS = 6000;
+    private static final double TIMEOUT_MILLIS = 15000;
 
     private final String email;
 

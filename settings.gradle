@@ -1,2 +1,11 @@
+plugins {
+    // Permite que Gradle auto-descargue el JDK 17 declarado en el toolchain
+    // (build.gradle) cuando la máquina/contenedor no lo tiene instalado —
+    // necesario dentro de la imagen Docker de este repo, que trae JDK 21
+    // (mcr.microsoft.com/playwright/java:v1.58.0-noble) en vez de 17.
+    // Gradle 9 ya no auto-provisiona toolchains sin este resolver explícito.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name='RetoAutomation'
 include 'ui-tests','api-tests'

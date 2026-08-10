@@ -38,8 +38,19 @@ services:
     volumes:
       - .:/workspace
       - gradle-cache:/root/.gradle
-    networks:
-      - sut-network
+    # network_mode: host (no "networks: - sut-network" aquí, son excluyentes)
+    # es OBLIGATORIO para ui-tests, y es distinto del resto: el frontend del
+    # reto es un build de Vite con la URL del API "horneada" en el bundle
+    # JS como http://localhost:8080 (ver VITE_API_URL en el docker-compose.yml
+    # del reto). Si el navegador de Playwright corre dentro de un contenedor
+    # con red propia (bridge), ese fetch interno del propio React a
+    # "localhost:8080" apunta al contenedor mismo, no al API real — la
+    # página carga pero la tabla nunca recibe datos reales (se comprobó:
+    # con red bridge + DNS "frontend" el fetch queda permanentemente roto,
+    # sin importar cuánto se espere). Con red de host, "localhost" dentro
+    # del navegador es el mismo localhost que ya usa el sistema bajo prueba
+    # para publicar sus puertos, exactamente como en una corrida local.
+    network_mode: host
     # Chromium se queda sin memoria compartida con el /dev/shm por defecto
     # de Docker (64MB) y puede crashear a mitad de la corrida; se amplía
     # explícitamente en vez de usar --disable-dev-shm-usage (ese flag
@@ -47,7 +58,7 @@ services:
     shm_size: "1gb"
     command: >
       sh -c "./gradlew :ui-tests:test
-      -Dui.base.url=http://frontend
+      -Dui.base.url=http://localhost:3000
       -Dplaywright.headless=true
       --console=plain"
 
