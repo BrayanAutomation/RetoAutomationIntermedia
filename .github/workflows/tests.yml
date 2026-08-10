@@ -36,7 +36,7 @@ jobs:
   run-suite:
     name: "Ejecutar suite (${{ inputs.suite }}, tag: ${{ inputs.tag }})"
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       # ── 1. Código ────────────────────────────────────────────────────

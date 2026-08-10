@@ -9,10 +9,19 @@ dependencies {
 // que no tienen los navegadores cacheados de antemano; en una máquina de
 // desarrollo local normalmente ya están presentes y esta tarea es un no-op
 // rápido. Uso: ./gradlew :ui-tests:installPlaywrightBrowsers
+//
+// IMPORTANTE: se instalan los 3 navegadores por defecto (sin filtrar a
+// "chromium"), aunque esta suite solo use Chromium. Se comprobó en CI que,
+// si acá solo se instala chromium, el propio driver de Playwright igual
+// descarga Firefox y WebKit por su cuenta la primera vez que el test
+// arranca de verdad (dentro de la tarea :ui-tests:test, sin log claro de
+// que eso está pasando) — quedaba mejor tenerlo todo resuelto acá, en un
+// paso con logging explícito, que tropezar con esa descarga sorpresa a
+// mitad de la corrida.
 tasks.register('installPlaywrightBrowsers', JavaExec) {
     group = 'playwright'
-    description = 'Instala los navegadores de Playwright (chromium) y sus dependencias de SO'
+    description = 'Instala los navegadores de Playwright (todos) y sus dependencias de SO'
     classpath = sourceSets.test.runtimeClasspath
     mainClass.set('com.microsoft.playwright.CLI')
-    args = ['install', '--with-deps', 'chromium']
+    args = ['install', '--with-deps']
 }
