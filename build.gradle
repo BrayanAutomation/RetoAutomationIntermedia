@@ -3,6 +3,20 @@ plugins {
     id 'net.serenity-bdd.serenity-gradle-plugin' version "${serenityGradleVersion}"
 }
 
+// El plugin de Serenity no declara correctamente como "input" la carpeta
+// compartida de evidencia (target/site/serenity, redirigida ahí desde cada
+// subproyecto vía -Dserenity.outputDirectory). Consecuencia real observada:
+// si api-tests y ui-tests corren en invocaciones SEPARADAS de Gradle
+// (./gradlew :api-tests:test, después ./gradlew :ui-tests:test), la
+// segunda invocación marca "aggregate" como UP-TO-DATE y NO recompila el
+// index.html con la evidencia nueva — el reporte queda con datos viejos/
+// incompletos sin ningún error visible. Se fuerza a que siempre rehaga el
+// reporte; es una tarea barata, no vale la pena el riesgo de un reporte
+// desactualizado por ahorrar unos segundos.
+tasks.named('aggregate') {
+    outputs.upToDateWhen { false }
+}
+
 subprojects {
     apply plugin: 'java'
     group = 'com.reto.automation'
