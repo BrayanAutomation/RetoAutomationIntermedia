@@ -65,7 +65,14 @@ subprojects {
         // (System.getProperty(x, "default")) sin importar qué -D se pase.
         def forwardedProperties = [
                 'api.base.url', 'ui.base.url',
-                'playwright.headless', 'playwright.browser'
+                'playwright.headless', 'playwright.browser',
+                // Sin @ConfigurationParameter explícito en el runner (ver
+                // CiApiTest/CiUiTest), JUnit Platform resuelve las
+                // configuration parameters cayendo a properties de sistema
+                // del JVM — por eso alcanza con reenviar esta property para
+                // poder filtrar por tag en tiempo de ejecución (usado por
+                // el pipeline de GitHub Actions).
+                'cucumber.filter.tags'
         ]
         forwardedProperties.each { key ->
             def value = System.getProperty(key)

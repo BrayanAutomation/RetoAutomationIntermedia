@@ -1,0 +1,160 @@
+name: 🎭 Suite de Automatización (UI / API)
+
+# Pipeline manual: se dispara desde la pestaña "Actions" de GitHub eligiendo
+# qué suite correr (API, UI o ambas) y, opcionalmente, un tag de Cucumber
+# para filtrar qué escenarios ejecutar (ej. @HappyPath, @Negative,
+# @CA-API-02). Levanta el sistema bajo prueba real
+# (intermedia-group/automation-testing-artefacts) vía Docker Compose,
+# corre la suite contra él y publica el reporte Serenity BDD combinado
+# como artifact descargable.
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Qué suite ejecutar"
+        type: choice
+        options:
+          - api
+          - ui
+          - both
+        default: both
+        required: true
+      tag:
+        description: "Tag de Cucumber a filtrar (ej. @HappyPath, @Negative, @Edge, @DataVariation, @CA-API-02, @KnownDefect). Vacío = correr todos los escenarios."
+        type: string
+        required: false
+        default: ""
+
+# Evita que dos ejecuciones manuales se pisen levantando el mismo stack a
+# la vez en el mismo runner.
+concurrency:
+  group: automation-suite-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  run-suite:
+    name: "Ejecutar suite (${{ inputs.suite }}, tag: ${{ inputs.tag }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── 1. Código ────────────────────────────────────────────────────
+      - name: 📥 Checkout suite de automatización
+        uses: actions/checkout@v4
+
+      - name: 📥 Checkout sistema bajo prueba (automation-testing-artefacts)
+        uses: actions/checkout@v4
+        with:
+          repository: intermedia-group/automation-testing-artefacts
+          path: sut
+
+      # ── 2. Sistema bajo prueba ───────────────────────────────────────
+      - name: 🐳 Levantar el sistema bajo prueba
+        working-directory: sut
+        run: |
+          docker compose up --build -d
+
+          echo "Esperando a que el backend responda en :8080/health..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/health >/dev/null; then
+              echo "✅ Backend disponible"
+              break
+            fi
+            [ "$i" -eq 30 ] && { echo "❌ El backend no respondió a tiempo"; exit 1; }
+            sleep 2
+          done
+
+          echo "Esperando a que el frontend responda en :3000..."
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://localhost:3000; then
+              echo "✅ Frontend disponible"
+              break
+            fi
+            [ "$i" -eq 30 ] && { echo "❌ El frontend no respondió a tiempo"; exit 1; }
+            sleep 2
+          done
+
+      # ── 3. Toolchain ─────────────────────────────────────────────────
+      - name: ☕ Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 🐘 Configurar Gradle (con caché)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 🔧 Dar permisos de ejecución al wrapper
+        run: chmod +x gradlew
+
+      # ── 4. API ───────────────────────────────────────────────────────
+      - name: 🌐 Ejecutar suite de API
+        if: ${{ inputs.suite == 'api' || inputs.suite == 'both' }}
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$TAG" ]; then
+            echo "▶ Corriendo api-tests filtrado por tag: $TAG"
+            ./gradlew :api-tests:test --tests "com.reto.automation.api.runners.CiApiTest" \
+              -Dapi.base.url=http://localhost:8080 \
+              -Dcucumber.filter.tags="$TAG" \
+              --console=plain
+          else
+            echo "▶ Corriendo api-tests completo (sin filtro de tag)"
+            ./gradlew :api-tests:test --tests "com.reto.automation.api.runners.CiApiTest" \
+              -Dapi.base.url=http://localhost:8080 \
+              --console=plain
+          fi
+
+      # ── 5. UI ────────────────────────────────────────────────────────
+      - name: 🎪 Instalar navegadores de Playwright
+        if: ${{ inputs.suite == 'ui' || inputs.suite == 'both' }}
+        run: ./gradlew :ui-tests:installPlaywrightBrowsers --console=plain
+
+      - name: 🎪 Ejecutar suite de UI
+        if: ${{ inputs.suite == 'ui' || inputs.suite == 'both' }}
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$TAG" ]; then
+            echo "▶ Corriendo ui-tests filtrado por tag: $TAG"
+            ./gradlew :ui-tests:test --tests "com.reto.automation.ui.runners.CiUiTest" \
+              -Dui.base.url=http://localhost:3000 \
+              -Dplaywright.headless=true \
+              -Dcucumber.filter.tags="$TAG" \
+              --console=plain
+          else
+            echo "▶ Corriendo ui-tests completo (sin filtro de tag)"
+            ./gradlew :ui-tests:test --tests "com.reto.automation.ui.runners.CiUiTest" \
+              -Dui.base.url=http://localhost:3000 \
+              -Dplaywright.headless=true \
+              --console=plain
+          fi
+
+      # ── 6. Reportes (siempre, incluso si algún escenario falló) ──────
+      - name: 📊 Publicar reporte Serenity BDD combinado
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serenity-report-${{ inputs.suite }}-${{ github.run_number }}
+          path: target/site/serenity/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: 📋 Publicar reportes JUnit planos (por módulo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports-${{ inputs.suite }}-${{ github.run_number }}
+          path: |
+            api-tests/build/reports/tests/test/
+            ui-tests/build/reports/tests/test/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # ── 7. Limpieza ───────────────────────────────────────────────────
+      - name: 🧹 Apagar el sistema bajo prueba
+        if: always()
+        working-directory: sut
+        run: docker compose down -v

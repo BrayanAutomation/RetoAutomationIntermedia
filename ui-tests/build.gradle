@@ -2,3 +2,17 @@ dependencies {
  implementation "net.serenity-bdd:serenity-screenplay:${serenityCoreVersion}"
  implementation "net.serenity-bdd:serenity-screenplay-playwright:${serenityCoreVersion}"
 }
+
+// Instala los binarios de navegador de Playwright (con sus dependencias de
+// SO) usando la MISMA versión resuelta por com.microsoft.playwright:playwright
+// en el classpath de test. Necesario en runners "limpios" (GitHub Actions)
+// que no tienen los navegadores cacheados de antemano; en una máquina de
+// desarrollo local normalmente ya están presentes y esta tarea es un no-op
+// rápido. Uso: ./gradlew :ui-tests:installPlaywrightBrowsers
+tasks.register('installPlaywrightBrowsers', JavaExec) {
+    group = 'playwright'
+    description = 'Instala los navegadores de Playwright (chromium) y sus dependencias de SO'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass.set('com.microsoft.playwright.CLI')
+    args = ['install', '--with-deps', 'chromium']
+}
