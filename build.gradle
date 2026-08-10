@@ -45,5 +45,16 @@ subprojects {
 
     test {
         useJUnitPlatform()
+        // Ambos módulos (api-tests, ui-tests) escriben su evidencia cruda de
+        // Serenity en la MISMA carpeta compartida del proyecto raíz, en vez
+        // de cada uno en su propio target/site/serenity/. Así, al agregar,
+        // se compila un único reporte combinado con los escenarios de ambos.
+        systemProperty 'serenity.outputDirectory', "${rootDir}/target/site/serenity"
+        // El plugin de Serenity solo está aplicado en el proyecto raíz (ver
+        // arriba), donde vive la tarea "aggregate" real. Cada módulo la
+        // dispara al terminar sus tests; Gradle deduplica: si se corren
+        // ambos en la misma invocación (./gradlew test), "aggregate" corre
+        // una sola vez, después de que TERMINEN los dos.
+        finalizedBy rootProject.tasks.named('aggregate')
     }
 }

@@ -16,9 +16,19 @@ para el reto técnico de `automation-testing-artefacts`.
 ```bash
 cd ../automation-testing-artefacts && docker-compose up --build -d   # sistema bajo prueba
 ./gradlew clean build
-./gradlew :api-tests:test
-./gradlew :ui-tests:test
+./gradlew :api-tests:test :ui-tests:test --continue
 ```
+
+`--continue` es necesario si querés que corran ambos módulos aunque uno
+falle: hay escenarios `@KnownDefect` que fallan a propósito contra el
+sistema real (documentan bugs, ver `docs/context/`) — sin esa flag Gradle
+detiene el build en el primer módulo que falla.
+
+**Reporte Serenity BDD combinado** (API + UI en un único `index.html`):
+`target/site/serenity/index.html`. Ambos módulos escriben su evidencia en
+esa misma carpeta compartida (ver `serenity.outputDirectory` en
+`build.gradle`) y disparan la misma tarea `aggregate` del proyecto raíz al
+terminar.
 
 ## Ejecutar la suite en Docker (sin instalar Java/Gradle/Playwright)
 
@@ -26,7 +36,9 @@ Ver **[DOCKER.md](./DOCKER.md)** — guía completa de reproducibilidad con
 `Dockerfile` + `docker-compose.tests.yml`.
 
 ```bash
-docker compose -f docker-compose.tests.yml up --build --abort-on-container-exit
+docker compose -f docker-compose.tests.yml build
+docker compose -f docker-compose.tests.yml run --rm api-tests
+docker compose -f docker-compose.tests.yml run --rm ui-tests
 ```
 
 ## Parámetros disponibles

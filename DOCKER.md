@@ -32,29 +32,34 @@ curl http://localhost:8080/health   # debe responder {"status":"UP",...}
 Desde la raíz de **este** repositorio (`RetoAutomationIntermedia`):
 
 ```bash
-docker compose -f docker-compose.tests.yml up --build --abort-on-container-exit
-```
-
-Esto construye la imagen una vez (compartida por ambos servicios) y corre
-`api-tests` y `ui-tests` en paralelo, cada uno dentro de su propio
-contenedor, conectados a la red del reto por su nombre de servicio interno
-(`http://api:8080`, `http://frontend`) — **sin depender de `localhost`**,
-lo cual es justamente la diferencia entre correr la suite en el host y
-correrla dentro de Docker.
-
-Para correr un solo módulo:
-
-```bash
+docker compose -f docker-compose.tests.yml build
 docker compose -f docker-compose.tests.yml run --rm api-tests
 docker compose -f docker-compose.tests.yml run --rm ui-tests
 ```
 
-Los reportes Serenity quedan en el host igual que en una corrida local
-(el código fuente se monta como volumen, no se copia dentro de la imagen):
+Se corren **secuencialmente con `run --rm`**, no con `up --build --abort-on-container-exit`:
+esta suite tiene escenarios que **fallan a propósito** (`@KnownDefect`,
+ver `docs/context/` y el `REPORT_TEMPLATE.md` del reto) para documentar
+bugs reales del sistema. `--abort-on-container-exit` mata **todos** los
+contenedores en cuanto el primero termina (sin importar si fue éxito o
+fallo) — con dos servicios independientes eso puede cortar `ui-tests` a
+mitad de camino si `api-tests` termina primero con código de salida ≠ 0.
+Correrlos con `run --rm` uno tras otro evita ese problema y además genera
+un **reporte Serenity combinado** (ver sección siguiente), ya que ambos
+contenedores comparten el mismo volumen montado del código fuente.
+
+Ambos contenedores se conectan a la red del reto por el nombre de servicio
+interno (`http://api:8080`, `http://frontend`) — **sin depender de
+`localhost`**, que es justamente la diferencia entre correr la suite en el
+host y correrla dentro de Docker.
+
+Los reportes quedan en el host igual que en una corrida local (el código
+fuente se monta como volumen, no se copia dentro de la imagen):
 
 ```
-api-tests/build/reports/tests/test/index.html
-ui-tests/build/reports/tests/test/index.html
+target/site/serenity/index.html          # reporte Serenity BDD combinado (API + UI, ver más abajo)
+api-tests/build/reports/tests/test/index.html   # reporte JUnit plano solo de api-tests
+ui-tests/build/reports/tests/test/index.html    # reporte JUnit plano solo de ui-tests
 ```
 
 ## Si tu carpeta del reto no se llama "automation-testing-artefacts"
